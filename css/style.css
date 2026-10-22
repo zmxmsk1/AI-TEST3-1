@@ -1,0 +1,140 @@
+/* ==========================================================
+   코팅 설비 생산일지 대시보드 스타일
+   색상을 바꾸고 싶으면 아래 :root 의 변수 값만 수정하세요.
+   ========================================================== */
+:root {
+  --bg: #e9edf0;          /* 페이지 배경 */
+  --surface: #ffffff;     /* 패널/표 배경 */
+  --ink: #18222d;         /* 기본 글자색 */
+  --muted: #5b6875;       /* 보조 글자색 */
+  --line: #c9d1d8;        /* 테두리/구분선 */
+  --bar: #2e6a8e;         /* 막대 색 */
+  --loss: #d98a1f;        /* 로스시간 막대 색 */
+  --ng-bg: #fbe3e0;       /* NG 행 배경 */
+  --ng-edge: #c0392b;     /* NG 행 왼쪽 강조선, 오류 글자색 */
+}
+
+/* [hidden] 속성이 다른 display 설정에 덮이지 않도록 강제 */
+[hidden] { display: none !important; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 24px clamp(16px, 4vw, 48px) 48px;
+  background: var(--bg);
+  color: var(--ink);
+  /* 외부 폰트 없이 OS 기본 한글 폰트 사용 */
+  font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+h1 { margin: 0; font-size: 1.5rem; }
+h2 { margin: 0 0 12px; font-size: 1rem; }
+h2 small { margin-left: 8px; font-weight: 400; color: var(--muted); }
+
+/* ---------- 상단 (제목 + 파일 선택) ---------- */
+.top {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 12px 24px;
+  margin-bottom: 8px;
+}
+.picker { display: flex; align-items: center; gap: 12px; }
+/* 실제 input 은 화면 밖으로 치우되, 키보드 포커스는 가능하게 유지 */
+.picker input[type="file"] {
+  position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden;
+}
+.file-btn {
+  padding: 8px 16px; background: var(--ink); color: #fff;
+  border-radius: 4px; cursor: pointer; font-weight: 600;
+}
+.file-btn:hover { background: #2c3b4b; }
+/* 키보드로 접근했을 때 버튼처럼 보이는 label 에 포커스 테두리 표시 */
+input[type="file"]:focus-visible + .file-btn { outline: 3px solid var(--bar); outline-offset: 2px; }
+#file-name { color: var(--muted); font-size: 0.9rem; word-break: break-all; }
+
+/* 안내/오류 메시지. 오류일 때 JS 가 is-error 클래스를 붙입니다 */
+#message { margin: 0 0 16px; color: var(--muted); font-size: 0.9rem; }
+#message.is-error { color: var(--ng-edge); font-weight: 600; }
+
+/* ---------- 요약 카드 ---------- */
+.kpi-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  background: var(--surface); border: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.kpi-card { padding: 16px 20px; border-right: 1px solid var(--line); }
+.kpi-card:last-child { border-right: 0; }
+.kpi-card h2 { margin: 0; color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.kpi-value {
+  margin: 4px 0 0; font-size: 2.2rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; /* 숫자 폭을 고정해 자릿수가 정렬됨 */
+}
+.kpi-sub { margin: 0; color: var(--muted); font-size: 0.8rem; min-height: 1.2em; }
+
+/* ---------- 패널(차트/표 공통 박스) ---------- */
+.panel {
+  background: var(--surface); border: 1px solid var(--line);
+  padding: 16px 20px; margin-bottom: 16px;
+}
+/* 차트 2개: 넓은 화면은 좌우, 좁은 화면은 위아래 */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.charts .panel { margin-bottom: 0; }
+
+/* ---------- 세로 막대 ---------- */
+/* 막대 한 칸(.vcol) = [값] / [막대 영역] / [이름] 을 위에서 아래로 쌓은 구조 */
+.vbars { display: flex; align-items: flex-start; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.vcol {
+  flex: 1 0 56px; max-width: 120px; display: flex; flex-direction: column;
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.vcol.pair { flex-basis: 84px; }                 /* 생산/로스 2개 막대가 들어가는 칸 */
+.vcol-value { height: 1.5em; font-size: 0.85rem; font-weight: 600; }
+/* 막대 영역 높이는 고정(200px). 막대 높이는 JS 가 style.height(퍼센트)로 지정 */
+.vcol-plot {
+  height: 200px; display: flex; align-items: flex-end; gap: 3px;
+  border-bottom: 1px solid var(--line);
+}
+.vcol-fill { flex: 1; min-height: 1px; background: var(--bar); }
+.vcol-fill.loss { background: var(--loss); }
+.vcol-label { margin-top: 6px; font-size: 0.8rem; color: var(--muted); word-break: keep-all; }
+/* 생산/로스 값 2개를 나란히 표시하는 줄 */
+.pair-values { display: flex; gap: 3px; height: 1.5em; font-size: 0.7rem; font-weight: 600; }
+.pair-values span { flex: 1; }
+.charts .wide { grid-column: 1 / -1; }          /* 일자별 차트는 한 줄 전체 */
+
+/* ---------- 버튼형 탭 (설비 선택, 표 필터) ---------- */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tab {
+  padding: 5px 14px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface); color: var(--ink); font: inherit; cursor: pointer;
+}
+.tab:hover { border-color: var(--ink); }
+.tab.is-active { background: var(--ink); border-color: var(--ink); color: #fff; }
+.tab:focus-visible { outline: 3px solid var(--bar); outline-offset: 2px; }
+/* 범례 색 점 */
+.dot { display: inline-block; width: 10px; height: 10px; margin: 0 4px 0 12px; }
+.dot:first-child { margin-left: 0; }
+.dot-prod { background: var(--bar); }
+.dot-loss { background: var(--loss); }
+#time-note { margin-left: 16px; }
+
+/* ---------- NG 정리 ---------- */
+.ng-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.ng-grid h3 { margin: 0 0 6px; font-size: 0.9rem; }
+.ng-table td.ng-count { font-weight: 700; color: var(--ng-edge); }
+
+/* ---------- 전체 롤 표 ---------- */
+.legend { margin: 0 0 8px; color: var(--muted); font-size: 0.85rem; }
+.legend-swatch {
+  display: inline-block; width: 14px; height: 14px; margin-right: 6px;
+  vertical-align: -2px; background: var(--ng-bg); border-left: 4px solid var(--ng-edge);
+}
+.table-wrap { max-height: 520px; overflow: auto; border: 1px solid var(--line); }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+th { position: sticky; top: 0; background: #f4f6f8; z-index: 1; } /* 스크롤해도 머리글 고정 */
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* NG 행: 배경색 + 왼쪽 굵은 선 + 굵은 글씨(색을 못 보는 경우에도 구분되도록) */
+tr.is-ng td { background: var(--ng-bg); font-weight: 600; }
+tr.is-ng td:first-child { box-shadow: inset 4px 0 0 var(--ng-edge); }

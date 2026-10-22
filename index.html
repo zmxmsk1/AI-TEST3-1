@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+  코팅 설비 생산일지 대시보드 (빌드 도구 없이 더블클릭으로 실행)
+  구성: index.html(뼈대) / css/style.css(모양) / js/dashboard.js(동작)
+  - 아래 id 값은 js/dashboard.js 가 화면을 채울 때 찾는 이름입니다.
+    id 를 바꾸면 JS 의 같은 이름도 함께 바꿔야 합니다.
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>코팅 설비 생산일지 대시보드</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- 상단: 제목 + CSV 파일 선택 -->
+  <header class="top">
+    <h1>코팅 설비 생산일지</h1>
+    <div class="picker">
+      <!-- 실제 file input 은 숨기고, label 을 버튼처럼 보이게 합니다(CSS 참고) -->
+      <input type="file" id="csv-input" accept=".csv,text/csv">
+      <label class="file-btn" for="csv-input">CSV 파일 선택</label>
+      <span id="file-name">선택된 파일 없음</span>
+    </div>
+  </header>
+
+  <!-- 안내/오류/불러오기 결과 메시지가 표시되는 자리 -->
+  <p id="message" role="status">CSV 파일을 선택하면 대시보드가 표시됩니다.</p>
+
+  <!-- 파일을 읽기 전에는 hidden 으로 숨겨 두고, 성공하면 JS 가 보여 줍니다 -->
+  <main id="dashboard" hidden>
+
+    <!-- 1) 요약 카드 (마지막 카드가 NG 롤 수) -->
+    <section class="kpi-strip" aria-label="요약">
+      <article class="kpi-card"><h2>총 롤 수</h2>
+        <p class="kpi-value" id="kpi-rolls">-</p><p class="kpi-sub" id="kpi-rolls-sub"></p></article>
+      <article class="kpi-card"><h2>불량률</h2>
+        <p class="kpi-value" id="kpi-defect">-</p><p class="kpi-sub" id="kpi-defect-sub"></p></article>
+      <article class="kpi-card"><h2>가동률</h2>
+        <p class="kpi-value" id="kpi-util">-</p><p class="kpi-sub">생산시간 ÷ (생산시간 + 로스시간)</p></article>
+      <article class="kpi-card"><h2>총 로스시간</h2>
+        <p class="kpi-value" id="kpi-loss">-</p><p class="kpi-sub" id="kpi-loss-sub"></p></article>
+      <article class="kpi-card"><h2>NG 롤 수</h2>
+        <p class="kpi-value" id="kpi-ng">-</p><p class="kpi-sub" id="kpi-ng-sub"></p></article>
+    </section>
+
+    <!-- 2) 세로 막대 차트: 설비별 / 생산 모델별 / 일자별 (.wide = 한 줄 전체 사용) -->
+    <div class="charts">
+      <section class="panel">
+        <h2>설비별 생산 롤 수 <small>많은 순</small></h2>
+        <div class="vbars" id="chart-equipment"></div>
+      </section>
+      <section class="panel">
+        <h2>생산 모델별 생산 롤 수 <small>많은 순</small></h2>
+        <div class="vbars" id="chart-model"></div>
+      </section>
+      <section class="panel wide">
+        <h2>일자별 생산 롤 수 <small>날짜 순</small></h2>
+        <div class="vbars" id="chart-daily"></div>
+      </section>
+    </div>
+
+    <!-- 3) 설비별 생산시간/로스시간 일자별 변화. 설비 버튼은 JS 가 만듭니다 -->
+    <section class="panel">
+      <h2>설비별 생산시간 · 로스시간 변화 <small>일자별 합계(분)</small></h2>
+      <div class="tabs" id="time-tabs" role="group" aria-label="설비 선택"></div>
+      <p class="legend">
+        <span class="dot dot-prod"></span>생산시간
+        <span class="dot dot-loss"></span>로스시간
+        <span id="time-note"></span>
+      </p>
+      <div class="vbars" id="chart-time"></div>
+    </section>
+
+    <!-- 4) NG 정리: 설비별 / 생산 모델별 (표 내용은 JS 가 채움) -->
+    <section class="panel">
+      <h2>NG 정리 <small>NG 수 · 불량률</small></h2>
+      <div class="ng-grid">
+        <div>
+          <h3>설비별</h3>
+          <table class="ng-table" id="ng-by-equipment">
+            <thead><tr><th>설비</th><th class="num">전체 롤</th><th class="num">NG 롤</th><th class="num">불량률</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>생산 모델별</h3>
+          <table class="ng-table" id="ng-by-model">
+            <thead><tr><th>생산 모델</th><th class="num">전체 롤</th><th class="num">NG 롤</th><th class="num">불량률</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5) 전체 롤 표 + "NG만 보기" 필터 (data-filter 값을 JS 가 읽습니다) -->
+    <section class="panel">
+      <h2>전체 롤 <small id="table-count"></small></h2>
+      <div class="tabs" id="filter-tabs" role="group" aria-label="표 필터">
+        <button type="button" class="tab is-active" data-filter="all" aria-pressed="true">전체 보기</button>
+        <button type="button" class="tab" data-filter="ng" aria-pressed="false">NG만 보기</button>
+      </div>
+      <p class="legend"><span class="legend-swatch"></span>배경색이 붉은 행은 판정 NG 입니다.</p>
+      <div class="table-wrap">
+        <table id="roll-table"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/dashboard.js"></script>
+
+  <!-- 점검용: dashboard.js 가 정상으로 불러와졌다면 handleFile 함수가 존재합니다.
+       없으면 js 폴더 위치가 잘못된 것이므로 화면에 원인을 알려 줍니다. -->
+  <script>
+    if (typeof handleFile !== 'function') {
+      var msg = document.getElementById('message');
+      msg.textContent = 'js/dashboard.js 를 불러오지 못했습니다. index.html 과 같은 위치에 js 폴더가 있는지 확인하세요.';
+      msg.className = 'is-error';
+    }
+  </script>
+</body>
+</html>
